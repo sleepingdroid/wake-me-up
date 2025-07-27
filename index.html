@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NeVeR wAke Me Up</title>
+    <title>Go-WASM Stupid Alarm: QR, Solo & Firebase</title>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -23,8 +26,6 @@
             background-position: center;
             background-repeat: no-repeat;
             background-attachment: fixed;
-            
-            filter: opacity(0.8); 
         }
         h1 {
             color: #333;
@@ -120,11 +121,66 @@
             background-color: #1a6d2f;
             border: 2px solid #fff;
         }
+        #qrcode {
+            width: 200px;
+            height: 200px;
+            margin: 20px auto;
+            border: 1px solid #ddd;
+        }
+        #reader {
+            width: 100%;
+            max-width: 400px;
+            margin: 20px auto;
+        }
+        #memberList {
+            text-align: left;
+            margin-top: 15px;
+            border-top: 1px solid #eee;
+            padding-top: 15px;
+        }
+        #memberList ul {
+            list-style: none;
+            padding: 0;
+        }
+        #memberList li {
+            padding: 5px 0;
+            color: #444;
+        }
+        /* Countdown Page Styles */
+        #countdownPage {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-size: 2em;
+            z-index: 1000;
+        }
+        #countdownTimer {
+            font-size: 4em;
+            margin: 20px 0;
+        }
+        #stopAlarmButton {
+            background-color: #dc3545; /* Red color for stop */
+            padding: 20px 40px;
+            font-size: 1.5em;
+            border-radius: 10px;
+        }
+        #stopAlarmButton:hover {
+            background-color: #c82333;
+        }
     </style>
 </head>
 <body>
-    <h1>NeVeR wAke Me Up</h1>
-    <p id="welcomeMessage">เข้ามาทำไม =w=</p>
+    <h1>Go-WASM Stupid Alarm</h1>
+    <p id="welcomeMessage">ยินดีต้อนรับสู่ Stupid Alarm!</p>
 
     <div class="container" id="initialSetup">
         <div class="section-title">ตั้งค่าเริ่มต้น</div>
@@ -163,20 +219,21 @@
 
     <div class="container" id="groupModeSetup" style="display: none;">
         <div class="section-title">โหมดกลุ่ม: ตั้งค่ากลุ่ม</div>
-        <label for="groupIdInput">Group ID:</label>
-        <input type="text" id="groupIdInput" placeholder="ใส่ Group ID หรือสร้างใหม่">
-        <button id="generateGroupIdButton">สร้าง Group ID</button>
-        <button id="joinGroupButton">เข้าร่วมกลุ่ม (ลูกกลุ่ม)</button>
-        <button id="activateGroupButton">เปิดใช้งานกลุ่ม (หัวหน้ากลุ่ม)</button>
-        <p id="groupStatus" style="font-weight: bold; margin-top: 10px;"></p>
-        <p class="warning">
-            ⚠️ สำหรับ Demo นี้: **เปิดหน้าเว็บนี้ในหลายๆ แท็บ/หน้าต่างเบราว์เซอร์เดียวกัน**
-            แล้วเข้าร่วมกลุ่มด้วย Group ID เดียวกัน เพื่อจำลองการทำงานเป็นกลุ่ม
-        </p>
+        <p>สร้างหรือเข้าร่วมกลุ่มเพื่อปลุกเพื่อน!</p>
+        <button id="createGroupModeButton">ฉันคือหัวหน้ากลุ่ม (สร้าง QR)</button>
+        <button id="scanGroupModeButton">ฉันคือลูกกลุ่ม (สแกน QR)</button>
+        <p>หรือกรอก Group ID ด้วยตัวเอง:</p>
+        <input type="text" id="manualGroupIdInput" placeholder="กรอก Group ID ที่นี่">
+        <button id="joinGroupManualButton">เข้าร่วมด้วย ID (ลูกกลุ่ม)</button>
+        <button id="backToModeSelectionGroupSetup">กลับไปเลือกโหมด</button>
     </div>
 
     <div class="container" id="groupLeaderControls" style="display: none;">
         <div class="section-title">สำหรับหัวหน้ากลุ่ม (<span id="leaderNameDisplay"></span>)</div>
+        <p>Group ID ของคุณคือ: <strong id="displayGroupId"></strong></p>
+        <p>ให้เพื่อนสแกน QR Code นี้เพื่อเข้ากลุ่ม:</p>
+        <div id="qrcode"></div> <p>หรือบอก Group ID ด้วยตัวเอง: <strong><span id="displayGroupIdText"></span></strong></p>
+
         <label for="groupAlarmMessage">ข้อความปลุก:</label>
         <textarea id="groupAlarmMessage" rows="3" placeholder="ตื่นได้แล้วไอ้ขี้เซา! สายแล้วนะเพื่อน!"></textarea>
 
@@ -186,25 +243,81 @@
 
         <button id="triggerGroupAlarmButton">ปลุกเพื่อนในกลุ่มเดี๋ยวนี้!</button>
         <button id="backToModeSelectionGroupLeader">กลับไปเลือกโหมด</button>
+        <p id="leaderStatus" class="error-message"></p>
+
+        <div id="memberList">
+            <h3>สมาชิกในกลุ่ม:</h3>
+            <ul id="memberListUl">
+                <li>(รอสมาชิกเข้าร่วม)</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="container" id="groupMemberScan" style="display: none;">
+        <div class="section-title">สำหรับลูกกลุ่ม (<span id="memberNameDisplayScan"></span>)</div>
+        <p>สแกน QR Code ของหัวหน้ากลุ่มเพื่อเข้าร่วม!</p>
+        <div id="reader"></div> <p id="scanStatus" class="error-message"></p>
+        <button id="backToModeSelectionGroupScan">กลับไปเลือกโหมด</button>
     </div>
 
     <div class="container" id="groupMemberStatus" style="display: none;">
-        <div class="section-title">สำหรับลูกกลุ่ม (<span id="memberNameDisplay"></span>)</div>
+        <div class="section-title">คุณได้เข้าร่วมกลุ่มแล้ว! (<span id="memberNameDisplayStatus"></span>)</div>
+        <p>Group ID: <strong id="displayJoinedGroupId"></strong></p>
         <p id="alarmReceivedStatus" style="font-weight: bold; color: blue;">กำลังรอคำสั่งปลุก...</p>
+        <button id="testSoundButton">ทดสอบเสียง (ถ้าไม่ได้ยิน!)</button>
         <button id="backToModeSelectionGroupMember">กลับไปเลือกโหมด</button>
     </div>
 
+    <div id="countdownPage">
+        <p>คุณกำลังจะถูกปลุกโดย <span id="alarmSenderName"></span> ใน</p>
+        <div id="countdownTimer">5</div>
+        <p>วินาที หากไม่หยุด!</p>
+        <button id="stopAlarmButton">หยุดการปลุก!</button>
+    </div>
+
     <script src="wasm_exec.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
     <script>
-        const ALARM_STORAGE_PREFIX = "stupid_group_alarm_"; 
-        const POLLING_INTERVAL = 500; 
+        // --- YOUR FIREBASE CONFIGURATION ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyAoH02B_trd9RPHxjg24n_skGtRqUCPCvw",
+            authDomain: "alarm-sht9.firebaseapp.com",
+            databaseURL: "https://alarm-sht9-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "alarm-sht9",
+            storageBucket: "alarm-sht9.firebasestorage.app",
+            messagingSenderId: "127828345964",
+            appId: "1:127828345964:web:36e91ece2f692f17fd8449",
+            measurementId: "G-2BV3P5MXD8"
+        };
+        // --- END FIREBASE CONFIGURATION ---
+
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database(); 
+        
+        const ALARM_DB_PATH = "stupidAlarms/"; 
 
         let userName = "ผู้เล่นกวน";
         let currentGroupId = null;
         let goModuleLoaded = false;
-        let currentMode = null; // 'solo', 'group_leader', 'group_member'
-        let lastAlarmTimestamp = 0; 
-        let pollingIntervalId = null; 
+        let currentMode = null; 
+        let html5QrCodeScanner; 
+        let userDeviceId = generateDeviceId(); 
+
+        // --- เพิ่มฟังก์ชัน Base64 Encoding/Decoding ที่รองรับ UTF-8 (ภาษาไทย) ---
+        function btoaUTF8(str) {
+            return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g,
+                function toSolidBytes(match, p1) {
+                    return String.fromCharCode('0x' + p1);
+                }));
+        }
+
+        function atobUTF8(str) {
+            return decodeURIComponent(atob(str).split('').map(function(c) {
+                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join(''));
+        }
+        // --- สิ้นสุดฟังก์ชัน Base64 UTF-8 ---
+
 
         // UI Elements - Initial Setup
         const initialSetupDiv = document.getElementById('initialSetup');
@@ -228,28 +341,54 @@
         const soloStatus = document.getElementById('soloStatus');
         const backToModeSelectionSoloButton = document.getElementById('backToModeSelectionSolo');
 
-        // UI Elements - Group Mode Setup
+        // UI Elements - Group Mode Setup (New)
         const groupModeSetupDiv = document.getElementById('groupModeSetup');
-        const groupIdInput = document.getElementById('groupIdInput');
-        const generateGroupIdButton = document.getElementById('generateGroupIdButton');
-        const joinGroupButton = document.getElementById('joinGroupButton');
-        const activateGroupButton = document.getElementById('activateGroupButton');
-        const groupStatus = document.getElementById('groupStatus');
+        const createGroupModeButton = document.getElementById('createGroupModeButton');
+        const scanGroupModeButton = document.getElementById('scanGroupModeButton');
+        const backToModeSelectionGroupSetupButton = document.getElementById('backToModeSelectionGroupSetup');
+        const manualGroupIdInput = document.getElementById('manualGroupIdInput'); 
+        const joinGroupManualButton = document.getElementById('joinGroupManualButton'); 
 
-        // UI Elements - Group Leader
+        // UI Elements - Group Leader (New)
         const groupLeaderControlsDiv = document.getElementById('groupLeaderControls');
+        const displayGroupId = document.getElementById('displayGroupId');
+        const displayGroupIdText = document.getElementById('displayGroupIdText'); 
+        const qrcodeDiv = document.getElementById('qrcode');
         const leaderNameDisplay = document.getElementById('leaderNameDisplay');
         const groupAlarmMessageInput = document.getElementById('groupAlarmMessage');
         const groupVolumeRange = document.getElementById('groupVolumeRange');
         const groupVolumeValueSpan = document.getElementById('groupVolumeValue');
         const triggerGroupAlarmButton = document.getElementById('triggerGroupAlarmButton');
         const backToModeSelectionGroupLeaderButton = document.getElementById('backToModeSelectionGroupLeader');
+        const leaderStatus = document.getElementById('leaderStatus');
+        const memberListUl = document.getElementById('memberListUl'); 
 
-        // UI Elements - Group Member
+        // UI Elements - Group Member Scan (New)
+        const groupMemberScanDiv = document.getElementById('groupMemberScan');
+        const memberNameDisplayScan = document.getElementById('memberNameDisplayScan');
+        const readerDiv = document.getElementById('reader');
+        const scanStatus = document.getElementById('scanStatus');
+        const backToModeSelectionGroupScanButton = document.getElementById('backToModeSelectionGroupScan');
+
+
+        // UI Elements - Group Member Status (Existing, modified)
         const groupMemberStatusDiv = document.getElementById('groupMemberStatus');
-        const memberNameDisplay = document.getElementById('memberNameDisplay');
+        const memberNameDisplayStatus = document.getElementById('memberNameDisplayStatus');
+        const displayJoinedGroupId = document.getElementById('displayJoinedGroupId');
         const alarmReceivedStatus = document.getElementById('alarmReceivedStatus');
+        const testSoundButton = document.getElementById('testSoundButton'); 
         const backToModeSelectionGroupMemberButton = document.getElementById('backToModeSelectionGroupMember');
+
+        // UI Elements - Countdown Page (New)
+        const countdownPageDiv = document.getElementById('countdownPage');
+        const alarmSenderNameSpan = document.getElementById('alarmSenderName');
+        const countdownTimerDiv = document.getElementById('countdownTimer');
+        const stopAlarmButton = document.getElementById('stopAlarmButton');
+
+        let countdownInterval; 
+        let currentAlarmData = null; 
+        let latestTimestampFromFirebase = 0; // Track the latest timestamp we've seen from Firebase
+
 
         // Go-WASM Function (from main.go)
         const speakAlarm = (message, volume) => {
@@ -257,11 +396,10 @@
                 window.speakAlarm(message, volume);
             } else {
                 console.error("Go speakAlarm function not loaded or available.");
-                // Update status based on current mode
                 if (currentMode === 'solo') {
                     soloStatus.textContent = "Go-WASM ยังไม่พร้อม! กรุณาเริ่มต้นแอป";
-                } else if (currentMode === 'group_member') {
-                    alarmReceivedStatus.textContent = "Go-WASM ยังไม่พร้อม! กรุณาเริ่มต้นแอป";
+                } else if (currentMode === 'group_member' || currentMode === 'group_leader') { 
+                    console.warn("Go-WASM not ready for speaking.");
                 }
             }
         };
@@ -279,11 +417,8 @@
                 go.run(result.instance);
                 goModuleLoaded = true;
                 console.log("Go-WASM loaded successfully.");
-                initialSetupStatus.textContent = ""; // Clear status on success
+                initialSetupStatus.textContent = ""; 
 
-                // ***สำคัญมากสำหรับการทำงานของ Web Speech API ในเบราว์เซอร์***
-                // การเรียก speak() ที่มี volume เป็น 0 หรือข้อความว่างๆ หลังจากการคลิกปุ่มแรก
-                // จะช่วยให้เบราว์เซอร์ "อนุญาต" การเล่นเสียงอัตโนมัติในภายหลังได้
                 const testUtterance = new SpeechSynthesisUtterance(" ");
                 testUtterance.volume = 0; 
                 window.speechSynthesis.speak(testUtterance);
@@ -291,7 +426,7 @@
                 return true;
             } catch (err) {
                 console.error("Error loading Go-WASM:", err);
-                initialSetupStatus.textContent = `ข้อผิดพลาดในการโหลด Go-WASM: ${err.message}. โปรดตรวจสอบว่ารันผ่าน Local Server หรือ GitHub Pages`;
+                initialSetupStatus.textContent = `ข้อผิดพลาดในการโหลด Go-WASM: ${err.message}. โปรดตรวจสอบ Console และการรันผ่าน Local Server หรือ GitHub Pages`;
                 return false;
             }
         }
@@ -303,16 +438,42 @@
             soloModeControlsDiv.style.display = 'none';
             groupModeSetupDiv.style.display = 'none';
             groupLeaderControlsDiv.style.display = 'none';
+            groupMemberScanDiv.style.display = 'none';
             groupMemberStatusDiv.style.display = 'none';
+            countdownPageDiv.style.display = 'none'; 
+            // Stop QR scanner if it's active
+            if (html5QrCodeScanner && html5QrCodeScanner.isScanning) {
+                html5QrCodeScanner.stop().then(() => {
+                    console.log("QR scanner stopped.");
+                }).catch((err) => {
+                    if (!err.message.includes("already under transition")) {
+                        console.warn("Error stopping QR scanner:", err);
+                    } else {
+                        console.log("Scanner was already stopping. Ignored redundant stop command.");
+                    }
+                });
+            }
+            // Detach Firebase listeners if any
+            if (currentGroupId) {
+                database.ref(ALARM_DB_PATH + currentGroupId + '/latestAlarm').off('value'); 
+                database.ref(ALARM_DB_PATH + currentGroupId + '/members').off('value'); 
+                console.log(`Firebase listeners for group ${currentGroupId} detached.`);
+            }
+            currentGroupId = null; 
+            if (countdownInterval) {
+                clearInterval(countdownInterval); // Clear any running countdown
+                countdownInterval = null;
+            }
+            window.speechSynthesis.cancel(); // Cancel any ongoing speech
         }
 
         function showInitialSetup() {
             hideAllSections();
             initialSetupDiv.style.display = 'block';
-            welcomeMessage.textContent = "เข้ามาทำไม =w=";
+            welcomeMessage.textContent = "ยินดีต้อนรับสู่ Stupid Alarm!";
             userNameInput.value = localStorage.getItem('userName') || "ผู้เล่นกวน"; 
-            initialSetupStatus.textContent = ""; // Clear any previous error messages
-            stopLocalStoragePolling(); // ตรวจสอบให้แน่ใจว่าหยุด Polling เมื่อกลับมาหน้าแรก
+            initialSetupStatus.textContent = ""; 
+            latestTimestampFromFirebase = 0; // Reset timestamp for new session
         }
 
         function showModeSelection() {
@@ -320,15 +481,15 @@
             modeSelectionDiv.style.display = 'block';
             displayUserName.textContent = userName;
             welcomeMessage.textContent = `ยินดีต้อนรับ, ${userName}!`;
-            stopLocalStoragePolling(); // ตรวจสอบให้แน่ใจว่าหยุด Polling เมื่อกลับมาหน้าเลือกโหมด
+            currentGroupId = null; 
+            latestTimestampFromFirebase = 0; // Reset timestamp for new session
         }
 
         function showSoloMode() {
             hideAllSections();
             soloModeControlsDiv.style.display = 'block';
-            soloStatus.textContent = "";
+            soloStatus.textContent = ""; 
             currentMode = 'solo';
-            stopLocalStoragePolling(); 
         }
 
         function showGroupModeSetup() {
@@ -337,60 +498,329 @@
             currentMode = null; 
         }
 
-        function showGroupLeaderMode() {
+        async function showGroupLeaderMode() {
             hideAllSections();
             groupLeaderControlsDiv.style.display = 'block';
             leaderNameDisplay.textContent = userName;
             currentMode = 'group_leader';
-            startLocalStoragePolling(); 
+            leaderStatus.textContent = "";
+            currentGroupId = generateGroupId(); 
+            displayGroupId.textContent = currentGroupId;
+            displayGroupIdText.textContent = currentGroupId; 
+            generateQRCode(currentGroupId); 
+            
+            registerMemberToGroup(currentGroupId, userName, userDeviceId);
+            listenForAlarms(currentGroupId); 
+            listenForMembers(currentGroupId); 
+            latestTimestampFromFirebase = 0; // Reset timestamp for new session
         }
 
-        function showGroupMemberMode() {
+        function showGroupMemberScan() {
+            hideAllSections();
+            groupMemberScanDiv.style.display = 'block';
+            memberNameDisplayScan.textContent = userName;
+            scanStatus.textContent = "กำลังเปิดกล้อง...";
+            currentMode = 'group_member_scan';
+            startQRScanner();
+        }
+
+        function showGroupMemberStatus(groupId) {
             hideAllSections();
             groupMemberStatusDiv.style.display = 'block';
-            memberNameDisplay.textContent = userName;
+            memberNameDisplayStatus.textContent = userName;
+            displayJoinedGroupId.textContent = groupId;
             alarmReceivedStatus.textContent = "กำลังรอคำสั่งปลุก...";
+            currentGroupId = groupId; 
             currentMode = 'group_member';
-            startLocalStoragePolling(); 
+            stopQRScanner(); 
+            registerMemberToGroup(currentGroupId, userName, userDeviceId);
+            listenForAlarms(currentGroupId); 
+            latestTimestampFromFirebase = 0; // Reset timestamp for new session
         }
 
-        // --- Local Storage Polling ---
-        function startLocalStoragePolling() {
-            if (pollingIntervalId) clearInterval(pollingIntervalId); 
-            pollingIntervalId = setInterval(() => {
-                if (!currentGroupId) return; 
-                const alarmKey = ALARM_STORAGE_PREFIX + currentGroupId;
-                const storedAlarm = localStorage.getItem(alarmKey);
-                
-                if (storedAlarm) {
-                    try {
-                        const alarmData = JSON.parse(storedAlarm);
-                        // Ensure it's a new alarm based on timestamp and not from the same user if leader
-                        if (alarmData.timestamp > lastAlarmTimestamp && alarmData.sender !== userName) { 
-                            // เพิ่มเช็คว่า Web Speech API พร้อมใช้งานก่อนเรียก speakAlarm
-                            if (window.speechSynthesis && window.speechSynthesis.speaking === false) { // เช็คว่าไม่มีการพูดค้างอยู่
-                                speakAlarm(alarmData.message, alarmData.volume);
-                                alarmReceivedStatus.textContent = `โดนปลุกจาก ${alarmData.sender}: "${alarmData.message}" (Vol: ${(alarmData.volume * 100).toFixed(0)}%)`;
-                                console.log("Alarm received from Local Storage:", alarmData);
-                                lastAlarmTimestamp = alarmData.timestamp; 
-                            } else {
-                                console.warn("SpeechSynthesis is busy or not ready. Retrying next poll.");
-                            }
-                        }
-                    } catch (e) {
-                        console.error("Error parsing alarm data from Local Storage:", e);
-                    }
+        function showCountdownPage(alarmData) {
+            hideAllSections(); 
+            countdownPageDiv.style.display = 'flex'; 
+            alarmSenderNameSpan.textContent = alarmData.sender;
+            countdownTimerDiv.textContent = '5'; 
+            currentAlarmData = alarmData; 
+
+            let timeLeft = 5;
+            if (countdownInterval) clearInterval(countdownInterval); // Clear any existing countdown
+            countdownInterval = setInterval(() => {
+                timeLeft--;
+                countdownTimerDiv.textContent = timeLeft;
+                if (timeLeft <= 0) {
+                    clearInterval(countdownInterval);
+                    countdownInterval = null;
+                    triggerFinalAlarm(alarmData); 
                 }
-            }, POLLING_INTERVAL); 
+            }, 1000); 
         }
 
-        function stopLocalStoragePolling() {
-            if (pollingIntervalId) {
-                clearInterval(pollingIntervalId);
-                pollingIntervalId = null;
-                console.log("Stopped Local Storage polling.");
+        function triggerFinalAlarm(alarmData) {
+            if (countdownInterval) clearInterval(countdownInterval); // Ensure interval is cleared
+            countdownInterval = null; // Clear ID
+            hideAllSections(); 
+            showGroupMemberStatus(alarmData.groupId); 
+            
+            // Check again for TTS readiness
+            if (window.speechSynthesis && !window.speechSynthesis.speaking && !window.speechSynthesis.pending) { 
+                speakAlarm(alarmData.message.trim(), alarmData.volume); // Trim message here
+                alarmReceivedStatus.textContent = `โดนปลุกจาก ${alarmData.sender}: "${alarmData.message}" (Vol: ${(alarmData.volume * 100).toFixed(0)}%)`;
+                console.log("Alarm played successfully after countdown.");
+            } else {
+                console.warn("SpeechSynthesis is busy/pending or not ready to play alarm after countdown.");
+                alarmReceivedStatus.textContent = `มีคำสั่งปลุกจาก ${alarmData.sender} แต่ระบบเสียงไม่พร้อม!`;
+                // Attempt to resume if paused
+                if (window.speechSynthesis && window.speechSynthesis.paused) {
+                    window.speechSynthesis.resume();
+                    console.log("SpeechSynthesis resumed after countdown.");
+                    // Try speaking again after resume
+                    setTimeout(() => {
+                        if (window.speechSynthesis && !window.speechSynthesis.speaking && !window.speechSynthesis.pending) {
+                            speakAlarm(alarmData.message.trim(), alarmData.volume); // Trim message here
+                        }
+                    }, 100);
+                }
             }
         }
+
+        function stopCountdownAlarm() {
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+                countdownInterval = null;
+                console.log("Alarm stopped by user.");
+            }
+            hideAllSections(); 
+            showGroupMemberStatus(currentAlarmData.groupId); 
+            alarmReceivedStatus.textContent = "การปลุกถูกหยุดแล้ว!";
+            window.speechSynthesis.cancel(); 
+        }
+
+
+        // --- Utility Functions ---
+        function generateDeviceId() {
+            let id = localStorage.getItem('userDeviceId');
+            if (!id) {
+                id = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+                localStorage.setItem('userDeviceId', id);
+            }
+            return id;
+        }
+
+        function generateGroupId() {
+            return Math.random().toString(36).substring(2, 8).toUpperCase();
+        }
+
+        // --- QR Code Generation & Scanning ---
+        function generateQRCode(groupId) {
+            qrcodeDiv.innerHTML = ''; 
+            const qrDataObj = {
+                groupId: groupId,
+                leader: userName
+            };
+            const qrJsonString = JSON.stringify(qrDataObj);
+            
+            const qrDataBase64 = btoaUTF8(qrJsonString); 
+            console.log("Original JSON String for QR:", qrJsonString);
+            console.log("Base64 Encoded (UTF-8) QR Data:", qrDataBase64); 
+
+            new QRCode(qrcodeDiv, {
+                text: qrDataBase64, 
+                width: 200,
+                height: 200,
+                colorDark : "#000000",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.H
+            });
+        }
+
+        async function startQRScanner() {
+            scanStatus.textContent = "กำลังขออนุญาตใช้กล้อง...";
+            html5QrCodeScanner = new Html5Qrcode("reader");
+            Html5Qrcode.getCameras().then(async devices => { 
+                if (devices && devices.length) {
+                    const cameraId = devices.find(device => device.label.toLowerCase().includes('back'))?.id || devices[0].id;
+                    scanStatus.textContent = "กล้องพร้อมสแกน...";
+                    
+                    if (html5QrCodeScanner.isScanning) {
+                        try {
+                            await html5QrCodeScanner.stop(); 
+                            console.log("QR scanner stopped gracefully before new start.");
+                        } catch (err) {
+                            console.warn("Error stopping previous scan (might be harmless):", err);
+                        }
+                    }
+
+                    html5QrCodeScanner.start(
+                        cameraId, 
+                        {
+                            fps: 10,    
+                            qrbox: {width: 250, height: 250}  
+                        },
+                        async (decodedText, decodedResult) => { 
+                            console.log(`QR Code detected (raw): ${decodedText}`); 
+                            try {
+                                const decodedFromBase64 = atobUTF8(decodedText.trim()); 
+                                console.log("Decoded from Base64 (UTF-8):", decodedFromBase64); 
+
+                                let jsonStartIndex = decodedFromBase64.indexOf('{');
+                                let jsonEndIndex = decodedFromBase64.lastIndexOf('}');
+                                let finalCleanText = "";
+
+                                if (jsonStartIndex !== -1 && jsonEndIndex !== -1 && jsonEndIndex > jsonStartIndex) {
+                                    finalCleanText = decodedFromBase64.substring(jsonStartIndex, jsonEndIndex + 1);
+                                } else {
+                                    throw new Error("Cannot find valid JSON start/end characters after Base64 decode.");
+                                }
+
+                                console.log("Final Cleaned JSON (for parsing):", finalCleanText); 
+
+                                const qrData = JSON.parse(finalCleanText);
+                                if (qrData.groupId) {
+                                    // Stop scanner immediately after a successful scan and before showing next screen
+                                    try {
+                                        await html5QrCodeScanner.stop(); 
+                                        console.log("QR scanner stopped after successful scan.");
+                                    } catch (err) {
+                                        console.warn("Error stopping scanner after success (might be harmless):", err);
+                                    }
+                                    showGroupMemberStatus(qrData.groupId);
+                                    scanStatus.textContent = `สแกนสำเร็จ! เข้ากลุ่ม ${qrData.groupId} แล้ว!`;
+                                } else {
+                                    scanStatus.textContent = "QR Code ไม่ถูกต้อง (ไม่พบ Group ID ในข้อมูล)"; 
+                                }
+                            } catch (e) {
+                                scanStatus.textContent = `QR Code ไม่ถูกต้อง (ข้อมูลเสียหายหรือไม่ใช่รูปแบบที่คาดหวัง: ${e.message})`; 
+                                console.error("Invalid QR code data after Base64 decode:", e);
+                            }
+                        },
+                        (errorMessage) => {
+                            // onError (e.g. no QR detected) - keep quiet for continuous scanning
+                        }
+                    ).catch((err) => {
+                        scanStatus.textContent = `เกิดข้อผิดพลาดในการเปิดกล้อง: ${err}. โปรดตรวจสอบสิทธิ์การเข้าถึงกล้อง.`;
+                        console.error("Error starting QR scanner:", err);
+                    });
+                } else {
+                    scanStatus.textContent = "ไม่พบกล้องในอุปกรณ์นี้";
+                }
+            }).catch(err => {
+                scanStatus.textContent = `ไม่สามารถเข้าถึงกล้องได้: ${err}. โปรดตรวจสอบสิทธิ์การเข้าถึงกล้อง.`;
+                console.error("Error getting cameras:", err);
+            });
+        }
+
+        function stopQRScanner() {
+            if (html5QrCodeScanner && html5QrCodeScanner.isScanning) {
+                html5QrCodeScanner.stop().then(() => {
+                    console.log("QR scanner stopped.");
+                }).catch((err) => {
+                     if (!err.message.includes("already under transition")) {
+                        console.warn("Error stopping QR scanner:", err);
+                    } else {
+                        console.log("Scanner was already stopping. Ignored redundant stop command.");
+                    }
+                });
+            }
+        }
+
+
+        // --- Firebase Integration ---
+
+        // Register member to Firebase
+        function registerMemberToGroup(groupId, name, deviceId) {
+            const memberRef = database.ref(`${ALARM_DB_PATH}${groupId}/members/${deviceId}`);
+            memberRef.set({
+                name: name,
+                lastSeen: firebase.database.ServerValue.TIMESTAMP
+            }).then(() => {
+                console.log(`Registered ${name} (${deviceId}) to group ${groupId}`);
+            }).catch(error => {
+                console.error("Failed to register member:", error);
+                if (currentMode === 'group_leader') leaderStatus.textContent = `Error: ไม่สามารถลงทะเบียนสมาชิกได้: ${error.message}`;
+                else if (currentMode === 'group_member') alarmReceivedStatus.textContent = `Error: ไม่สามารถลงทะเบียนสมาชิกได้: ${error.message}`;
+            });
+
+            // Remove member when they disconnect (simple presence system)
+            memberRef.onDisconnect().remove();
+        }
+
+        // Listen for alarms from Firebase Realtime Database
+        function listenForAlarms(groupId) {
+            const groupAlarmRef = database.ref(`${ALARM_DB_PATH}${groupId}/latestAlarm`);
+            
+            groupAlarmRef.off('value'); 
+            
+            groupAlarmRef.on('value', (snapshot) => {
+                const alarmData = snapshot.val();
+                
+                if (!alarmData) {
+                    console.log("No alarm data or alarm was cleared.");
+                    return; 
+                }
+
+                if (alarmData.sender !== userName) { 
+                    if (alarmData.timestamp > latestTimestampFromFirebase) {
+                        showCountdownPage(alarmData);
+                        // Do NOT update latestTimestampFromFirebase here.
+                        // It will be updated *after* the countdown starts, to ensure it doesn't block if the countdown is stopped.
+                    } else {
+                        console.log("Received old or already processed alarm, ignoring for countdown.");
+                    }
+                } else {
+                    console.log("Alarm sent by this user confirmed via Firebase:", alarmData);
+                    if (currentMode === 'group_leader') {
+                        // For leader, update timestamp immediately to prevent self-trigger countdown
+                        if (alarmData.timestamp > latestTimestampFromFirebase) {
+                            latestTimestampFromFirebase = alarmData.timestamp;
+                        }
+                        leaderStatus.textContent = `สั่งปลุกกลุ่ม "${currentGroupId}" แล้ว! (ส่งโดยคุณ)`;
+                    }
+                }
+            }, (error) => {
+                console.error("Firebase listen error (alarm):", error);
+                if (currentMode === 'group_leader') {
+                    leaderStatus.textContent = "ข้อผิดพลาด Firebase: " + error.message;
+                } else if (currentMode === 'group_member') {
+                    alarmReceivedStatus.textContent = "ข้อผิดพลาด Firebase: " + error.message;
+                }
+            });
+            console.log(`Firebase alarm listener attached for group ${groupId}`);
+        }
+
+        // Listen for members in Firebase
+        function listenForMembers(groupId) {
+            const groupMembersRef = database.ref(`${ALARM_DB_PATH}${groupId}/members`);
+            
+            groupMembersRef.off('value'); 
+            
+            groupMembersRef.on('value', (snapshot) => {
+                const members = snapshot.val();
+                memberListUl.innerHTML = ''; // Clear current list
+                if (members) {
+                    Object.keys(members).forEach(memberId => {
+                        const member = members[memberId];
+                        const li = document.createElement('li');
+                        li.textContent = `${member.name} (Online)`; 
+                        memberListUl.appendChild(li);
+                    });
+                } else {
+                    const li = document.createElement('li');
+                    li.textContent = '(รอสมาชิกเข้าร่วม)';
+                    memberListUl.appendChild(li);
+                }
+                console.log("Members updated:", members);
+            }, (error) => {
+                console.error("Firebase listen error (members):", error);
+                if (currentMode === 'group_leader') {
+                    leaderStatus.textContent = `ข้อผิดพลาดในการดึงรายชื่อสมาชิก: ${error.message}`;
+                }
+            });
+            console.log(`Firebase members listener attached for group ${groupId}`);
+        }
+
 
         // --- Event Listeners ---
 
@@ -404,7 +834,7 @@
             if (loaded) {
                 showModeSelection();
             } else {
-                initialSetupStatus.textContent = "ไม่สามารถโหลด Go-WASM ได้! โปรดตรวจสอบ Console และการรันผ่าน Local Server/GitHub Pages";
+                initialSetupStatus.textContent = "ไม่สามารถโหลด Go-WASM ได้! โปรดตรวจสอบ Console และการรันผ่าน Local Server หรือ GitHub Pages";
             }
         });
 
@@ -420,8 +850,8 @@
             const message = soloAlarmMessageInput.value || "ตื่นได้แล้วนะ!";
             const volume = parseFloat(soloVolumeRange.value) / 100;
             
-            if (window.speechSynthesis && window.speechSynthesis.speaking === false) { // เช็คก่อนสั่ง
-                speakAlarm(message, volume);
+            if (window.speechSynthesis && !window.speechSynthesis.speaking && !window.speechSynthesis.pending) { 
+                speakAlarm(message.trim(), volume); // Trim message here
                 soloStatus.textContent = `ปลุกตัวเองแล้ว: "${message}" (Vol: ${(volume * 100).toFixed(0)}%)`;
             } else {
                 soloStatus.textContent = "ระบบเสียงไม่พร้อม หรือกำลังพูดอยู่! กรุณาลองใหม่.";
@@ -430,32 +860,21 @@
         });
         backToModeSelectionSoloButton.addEventListener('click', showModeSelection);
 
-        // Group Mode Setup
-        generateGroupIdButton.addEventListener('click', () => {
-            const newId = Math.random().toString(36).substring(2, 8).toUpperCase();
-            groupIdInput.value = newId;
-            groupStatus.textContent = `สร้าง Group ID: ${newId} แล้ว!`;
+        // Group Mode Setup (New buttons)
+        createGroupModeButton.addEventListener('click', showGroupLeaderMode);
+        scanGroupModeButton.addEventListener('click', showGroupMemberScan);
+        backToModeSelectionGroupSetupButton.addEventListener('click', showModeSelection);
+        
+        // Manual Group ID Join Button
+        joinGroupManualButton.addEventListener('click', () => {
+            const manualId = manualGroupIdInput.value.trim();
+            if (manualId) {
+                showGroupMemberStatus(manualId);
+            } else {
+                alert("กรุณากรอก Group ID ด้วยตนเอง");
+            }
         });
 
-        joinGroupButton.addEventListener('click', () => {
-            currentGroupId = groupIdInput.value.trim();
-            if (!currentGroupId) {
-                groupStatus.textContent = "กรุณาใส่ Group ID ก่อน!";
-                return;
-            }
-            showGroupMemberMode();
-            groupStatus.textContent = `เข้าร่วมกลุ่ม "${currentGroupId}" แล้ว (ลูกกลุ่ม)`;
-        });
-
-        activateGroupButton.addEventListener('click', () => {
-            currentGroupId = groupIdInput.value.trim();
-            if (!currentGroupId) {
-                groupStatus.textContent = "กรุณาใส่ Group ID ก่อน!";
-                return;
-            }
-            showGroupLeaderMode();
-            groupStatus.textContent = `เปิดใช้งานกลุ่ม "${currentGroupId}" แล้ว (หัวหน้ากลุ่ม)`;
-        });
 
         // Group Leader Controls
         groupVolumeRange.addEventListener('input', () => {
@@ -463,41 +882,53 @@
         });
         triggerGroupAlarmButton.addEventListener('click', () => {
             if (!currentGroupId) {
-                groupStatus.textContent = "กรุณาตั้งค่า Group ID ก่อน!";
+                leaderStatus.textContent = "ยังไม่ได้สร้าง Group ID!";
                 return;
             }
 
-            const message = groupAlarmMessageInput.value || "ตื่นได้แล้วไอ้ขี้เซา!";
+            const message = groupAlarmMessageInput.value || "ตื่นได้แล้วไอ้ขี้เซา! สายแล้วนะเพื่อน!!";
             const volume = parseFloat(groupVolumeRange.value) / 100;
 
             const alarmData = {
-                message: message,
+                message: message.trim(), // Trim message here
                 volume: volume,
-                timestamp: Date.now(),
+                timestamp: firebase.database.ServerValue.TIMESTAMP, 
                 sender: userName 
             };
 
-            const alarmKey = ALARM_STORAGE_PREFIX + currentGroupId;
-            localStorage.setItem(alarmKey, JSON.stringify(alarmData));
-
-            groupStatus.textContent = `สั่งปลุกกลุ่ม "${currentGroupId}" แล้ว!`;
-            // หัวหน้ากลุ่มก็ดังด้วย!
-            if (window.speechSynthesis && window.speechSynthesis.speaking === false) { // เช็คก่อนสั่ง
-                speakAlarm(message, volume);
-            } else {
-                console.warn("SpeechSynthesis not ready or busy for group alarm from leader.");
-                groupStatus.textContent += " (แต่ระบบเสียงไม่พร้อม!)";
-            }
+            // Send alarm to Firebase
+            database.ref(ALARM_DB_PATH + currentGroupId + '/latestAlarm').set(alarmData) // Use SET instead of PUSH to update the same node
+                .then(() => {
+                    console.log("Alarm sent to Firebase:", alarmData);
+                })
+                .catch((error) => {
+                    leaderStatus.textContent = "ข้อผิดพลาดในการสั่งปลุก: " + error.message;
+                    console.error("Error sending alarm to Firebase:", error);
+                });
         });
         backToModeSelectionGroupLeaderButton.addEventListener('click', showModeSelection);
 
+        // Group Member Scan
+        backToModeSelectionGroupScanButton.addEventListener('click', showModeSelection);
+
         // Group Member Status
+        testSoundButton.addEventListener('click', () => {
+            if (window.speechSynthesis && !window.speechSynthesis.speaking && !window.speechSynthesis.pending) {
+                speakAlarm("ทดสอบเสียง", 1);
+                alarmReceivedStatus.textContent = "ทดสอบเสียง: ดังแล้ว!";
+            } else {
+                alarmReceivedStatus.textContent = "ทดสอบเสียง: ระบบเสียงไม่พร้อม! คลิกอีกครั้ง หรือตรวจสอบ Console.";
+            }
+        });
         backToModeSelectionGroupMemberButton.addEventListener('click', showModeSelection);
+
+        // Countdown Page Button
+        stopAlarmButton.addEventListener('click', stopCountdownAlarm);
 
         // Initial Load: Show setup screen
         document.addEventListener('DOMContentLoaded', showInitialSetup);
 
-        // Check URL parameters for direct deep linking to group (optional for convenience)
+        // Auto-join from URL (if needed for quick demo setup) - Handle with care
         const urlParams = new URLSearchParams(window.location.search);
         const initialGroupId = urlParams.get('groupId');
         const initialRole = urlParams.get('role'); 
@@ -511,11 +942,13 @@
             setTimeout(() => {
                 startAppButton.click(); 
                 setTimeout(() => { 
-                    groupIdInput.value = initialGroupId;
                     if (initialRole === 'leader') {
-                        activateGroupButton.click();
-                    } else {
-                        joinGroupButton.click();
+                        showGroupLeaderMode(); 
+                        displayGroupId.textContent = initialGroupId; 
+                        displayGroupIdText.textContent = initialGroupId;
+                        generateQRCode(initialGroupId); 
+                    } else { 
+                        showGroupMemberStatus(initialGroupId); 
                     }
                 }, 500); 
             }, 100);
