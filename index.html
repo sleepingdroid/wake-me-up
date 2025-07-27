@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>never gonna wake you up</title>
+    <title>NeVeR wAke Me Up</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -18,29 +18,29 @@
             padding: 20px;
             box-sizing: border-box;
 
-            /* --- เพิ่ม CSS สำหรับพื้นหลัง Rick Roll ตรงนี้ --- */
-            background-image: url('rick-astley.png'); /* เปลี่ยน 'rick-roll-bg.png' เป็นชื่อไฟล์รูปภาพของคุณ */
-            background-size: cover; /* ทำให้รูปภาพคลุมพื้นที่ทั้งหมด */
-            background-position: center; /* จัดตำแหน่งรูปภาพให้อยู่ตรงกลาง */
-            background-repeat: no-repeat; /* ไม่ให้รูปภาพซ้ำ */
-            background-attachment: fixed; /* ทำให้รูปภาพอยู่กับที่เมื่อ scroll */
+            background-image: url('rick-roll-bg.png'); /* เปลี่ยน 'rick-roll-bg.png' เป็นชื่อไฟล์รูปภาพของคุณ */
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
             
-            /* ทำให้รูปภาพจางลง */
-            filter: opacity(0.8); /* ปรับ grayscale และ opacity ตามต้องการ */
-            /* หรือใช้แค่ opacity อย่างเดียวก็ได้: opacity: 0.2; */
-            /* --- สิ้นสุดการเพิ่ม CSS --- */
+            filter: opacity(0.8); 
         }
         h1 {
             color: #333;
             margin-bottom: 10px;
+            position: relative; 
+            z-index: 1; 
         }
         p {
-            color: #ff0000;
+            color: #000000;
             font-size: 1.1em;
             margin-bottom: 20px;
+            position: relative;
+            z-index: 1;
         }
         .container {
-            background-color: #fff;
+            background-color: rgba(255, 255, 255, 0.9); 
             border: 1px solid #ddd;
             padding: 25px;
             border-radius: 8px;
@@ -49,6 +49,8 @@
             width: 90%;
             box-sizing: border-box;
             margin-bottom: 20px;
+            position: relative;
+            z-index: 1;
         }
         label {
             display: block;
@@ -93,6 +95,11 @@
             font-size: 0.9em;
             margin-top: 10px;
         }
+        .error-message {
+            color: red;
+            font-weight: bold;
+            margin-top: 10px;
+        }
         hr {
             margin: 30px 0;
             border: 0;
@@ -116,17 +123,18 @@
     </style>
 </head>
 <body>
-    <h1>NeVeR gOnNa WaKe YoU uP</h1>
-    <p id="welcomeMessage">ได้เวลา สนุก! แล้วสิ~</p>
+    <h1>NeVeR wAke Me Up</h1>
+    <p id="welcomeMessage">เข้ามาทำไม =w=</p>
 
     <div class="container" id="initialSetup">
         <div class="section-title">ตั้งค่าเริ่มต้น</div>
         <label for="userNameInput">ชื่อของคุณ:</label>
-        <input type="text" id="userNameInput" placeholder="ใส่ชื่อเล่นของคุณ" value="">
+        <input type="text" id="userNameInput" placeholder="ใส่ชื่อเล่นของคุณ" value="ผู้เล่นกวน">
         <p class="warning">
             ⚠️ ชื่อนี้จะแสดงให้คนในกลุ่มเห็น (ในกรณีที่ใช้โหมดกลุ่ม)
         </p>
         <button id="startAppButton">เริ่มใช้งาน!</button>
+        <p id="initialSetupStatus" class="error-message"></p>
     </div>
 
     <div class="container" id="modeSelection" style="display: none;">
@@ -134,6 +142,9 @@
         <p>คุณ **<span id="displayUserName"></span>** ต้องการปลุกแบบไหน?</p>
         <button id="soloModeButton">โหมดเดี่ยว: ปลุกตัวเอง!</button>
         <button id="groupModeButton">โหมดกลุ่ม: ปลุกเพื่อนในกลุ่ม!</button>
+        <p class="warning">
+            **สำคัญ:** ในโหมดเดี่ยวและโหมดกลุ่ม (ลูกกลุ่ม) คุณอาจต้อง **คลิกปุ่มใดๆ บนหน้าจออีกครั้ง** หลังจากเปลี่ยนโหมด หรือหากเสียงไม่ดัง เพื่อให้เบราว์เซอร์อนุญาตให้เล่นเสียง!
+        </p>
     </div>
 
     <div class="container" id="soloModeControls" style="display: none;">
@@ -188,18 +199,19 @@
         const ALARM_STORAGE_PREFIX = "stupid_group_alarm_"; 
         const POLLING_INTERVAL = 500; 
 
-        let userName = "";
+        let userName = "ผู้เล่นกวน";
         let currentGroupId = null;
         let goModuleLoaded = false;
         let currentMode = null; // 'solo', 'group_leader', 'group_member'
         let lastAlarmTimestamp = 0; 
-        let pollingIntervalId = null; // เพื่อเก็บ ID ของ setInterval สำหรับหยุด
+        let pollingIntervalId = null; 
 
         // UI Elements - Initial Setup
         const initialSetupDiv = document.getElementById('initialSetup');
         const userNameInput = document.getElementById('userNameInput');
         const startAppButton = document.getElementById('startAppButton');
         const welcomeMessage = document.getElementById('welcomeMessage');
+        const initialSetupStatus = document.getElementById('initialSetupStatus');
 
         // UI Elements - Mode Selection
         const modeSelectionDiv = document.getElementById('modeSelection');
@@ -247,9 +259,9 @@
                 console.error("Go speakAlarm function not loaded or available.");
                 // Update status based on current mode
                 if (currentMode === 'solo') {
-                    soloStatus.textContent = "Go-WASM ยังไม่พร้อม!";
+                    soloStatus.textContent = "Go-WASM ยังไม่พร้อม! กรุณาเริ่มต้นแอป";
                 } else if (currentMode === 'group_member') {
-                    alarmReceivedStatus.textContent = "Go-WASM ยังไม่พร้อม! กรุณากด 'เข้าร่วมกลุ่ม' ก่อน";
+                    alarmReceivedStatus.textContent = "Go-WASM ยังไม่พร้อม! กรุณาเริ่มต้นแอป";
                 }
             }
         };
@@ -257,6 +269,7 @@
         // Load Go-WASM Module
         async function loadGoWasm() {
             if (goModuleLoaded) return true;
+            initialSetupStatus.textContent = "กำลังโหลด Go-WASM... โปรดรอสักครู่";
             try {
                 const go = new Go();
                 const result = await WebAssembly.instantiateStreaming(
@@ -266,12 +279,19 @@
                 go.run(result.instance);
                 goModuleLoaded = true;
                 console.log("Go-WASM loaded successfully.");
+                initialSetupStatus.textContent = ""; // Clear status on success
+
+                // ***สำคัญมากสำหรับการทำงานของ Web Speech API ในเบราว์เซอร์***
+                // การเรียก speak() ที่มี volume เป็น 0 หรือข้อความว่างๆ หลังจากการคลิกปุ่มแรก
+                // จะช่วยให้เบราว์เซอร์ "อนุญาต" การเล่นเสียงอัตโนมัติในภายหลังได้
                 const testUtterance = new SpeechSynthesisUtterance(" ");
-                testUtterance.volume = 0;
+                testUtterance.volume = 0; 
                 window.speechSynthesis.speak(testUtterance);
+
                 return true;
             } catch (err) {
                 console.error("Error loading Go-WASM:", err);
+                initialSetupStatus.textContent = `ข้อผิดพลาดในการโหลด Go-WASM: ${err.message}. โปรดตรวจสอบว่ารันผ่าน Local Server หรือ GitHub Pages`;
                 return false;
             }
         }
@@ -289,8 +309,10 @@
         function showInitialSetup() {
             hideAllSections();
             initialSetupDiv.style.display = 'block';
-            welcomeMessage.textContent = "ได้เวลา สนุก! แล้วสิ~";
-            userNameInput.value = localStorage.getItem('userName') || "userA"; // โหลดชื่อจาก Local Storage
+            welcomeMessage.textContent = "เข้ามาทำไม =w=";
+            userNameInput.value = localStorage.getItem('userName') || "ผู้เล่นกวน"; 
+            initialSetupStatus.textContent = ""; // Clear any previous error messages
+            stopLocalStoragePolling(); // ตรวจสอบให้แน่ใจว่าหยุด Polling เมื่อกลับมาหน้าแรก
         }
 
         function showModeSelection() {
@@ -298,20 +320,21 @@
             modeSelectionDiv.style.display = 'block';
             displayUserName.textContent = userName;
             welcomeMessage.textContent = `ยินดีต้อนรับ, ${userName}!`;
+            stopLocalStoragePolling(); // ตรวจสอบให้แน่ใจว่าหยุด Polling เมื่อกลับมาหน้าเลือกโหมด
         }
 
         function showSoloMode() {
             hideAllSections();
             soloModeControlsDiv.style.display = 'block';
-            soloStatus.textContent = ""; // Clear previous status
+            soloStatus.textContent = "";
             currentMode = 'solo';
-            stopLocalStoragePolling(); // หยุด Polling ถ้ามาจากโหมดกลุ่ม
+            stopLocalStoragePolling(); 
         }
 
         function showGroupModeSetup() {
             hideAllSections();
             groupModeSetupDiv.style.display = 'block';
-            currentMode = null; // ยังไม่ระบุโหมดกลุ่มย่อย
+            currentMode = null; 
         }
 
         function showGroupLeaderMode() {
@@ -319,7 +342,7 @@
             groupLeaderControlsDiv.style.display = 'block';
             leaderNameDisplay.textContent = userName;
             currentMode = 'group_leader';
-            startLocalStoragePolling(); // เริ่ม Polling สำหรับหัวหน้ากลุ่ม
+            startLocalStoragePolling(); 
         }
 
         function showGroupMemberMode() {
@@ -328,14 +351,14 @@
             memberNameDisplay.textContent = userName;
             alarmReceivedStatus.textContent = "กำลังรอคำสั่งปลุก...";
             currentMode = 'group_member';
-            startLocalStoragePolling(); // เริ่ม Polling สำหรับลูกกลุ่ม
+            startLocalStoragePolling(); 
         }
 
         // --- Local Storage Polling ---
         function startLocalStoragePolling() {
-            if (pollingIntervalId) clearInterval(pollingIntervalId); // Clear any existing interval
+            if (pollingIntervalId) clearInterval(pollingIntervalId); 
             pollingIntervalId = setInterval(() => {
-                if (!currentGroupId) return; // ไม่ต้องเช็คถ้ายังไม่มี Group ID
+                if (!currentGroupId) return; 
                 const alarmKey = ALARM_STORAGE_PREFIX + currentGroupId;
                 const storedAlarm = localStorage.getItem(alarmKey);
                 
@@ -343,17 +366,22 @@
                     try {
                         const alarmData = JSON.parse(storedAlarm);
                         // Ensure it's a new alarm based on timestamp and not from the same user if leader
-                        if (alarmData.timestamp > lastAlarmTimestamp && alarmData.sender !== userName) { // เพิ่มเช็ค sender
-                            speakAlarm(alarmData.message, alarmData.volume);
-                            alarmReceivedStatus.textContent = `โดนปลุกจาก ${alarmData.sender}: "${alarmData.message}" (Vol: ${(alarmData.volume * 100).toFixed(0)}%)`;
-                            console.log("Alarm received from Local Storage:", alarmData);
-                            lastAlarmTimestamp = alarmData.timestamp; 
+                        if (alarmData.timestamp > lastAlarmTimestamp && alarmData.sender !== userName) { 
+                            // เพิ่มเช็คว่า Web Speech API พร้อมใช้งานก่อนเรียก speakAlarm
+                            if (window.speechSynthesis && window.speechSynthesis.speaking === false) { // เช็คว่าไม่มีการพูดค้างอยู่
+                                speakAlarm(alarmData.message, alarmData.volume);
+                                alarmReceivedStatus.textContent = `โดนปลุกจาก ${alarmData.sender}: "${alarmData.message}" (Vol: ${(alarmData.volume * 100).toFixed(0)}%)`;
+                                console.log("Alarm received from Local Storage:", alarmData);
+                                lastAlarmTimestamp = alarmData.timestamp; 
+                            } else {
+                                console.warn("SpeechSynthesis is busy or not ready. Retrying next poll.");
+                            }
                         }
                     } catch (e) {
                         console.error("Error parsing alarm data from Local Storage:", e);
                     }
                 }
-            }, POLLING_INTERVAL);
+            }, POLLING_INTERVAL); 
         }
 
         function stopLocalStoragePolling() {
@@ -369,13 +397,14 @@
         // Initial Setup
         startAppButton.addEventListener('click', async () => {
             userName = userNameInput.value.trim();
-            if (!userName) userName = "userA";
-            localStorage.setItem('userName', userName); // บันทึกชื่อไว้
+            if (!userName) userName = "ผู้เล่นกวน";
+            localStorage.setItem('userName', userName); 
+            initialSetupStatus.textContent = "กำลังโหลด Go-WASM... โปรดรอสักครู่";
             const loaded = await loadGoWasm();
             if (loaded) {
                 showModeSelection();
             } else {
-                alert("ไม่สามารถโหลด Go-WASM ได้! กรุณาตรวจสอบ Console.");
+                initialSetupStatus.textContent = "ไม่สามารถโหลด Go-WASM ได้! โปรดตรวจสอบ Console และการรันผ่าน Local Server/GitHub Pages";
             }
         });
 
@@ -390,8 +419,14 @@
         triggerSoloAlarmButton.addEventListener('click', () => {
             const message = soloAlarmMessageInput.value || "ตื่นได้แล้วนะ!";
             const volume = parseFloat(soloVolumeRange.value) / 100;
-            speakAlarm(message, volume);
-            soloStatus.textContent = `ปลุกตัวเองแล้ว: "${message}" (Vol: ${(volume * 100).toFixed(0)}%)`;
+            
+            if (window.speechSynthesis && window.speechSynthesis.speaking === false) { // เช็คก่อนสั่ง
+                speakAlarm(message, volume);
+                soloStatus.textContent = `ปลุกตัวเองแล้ว: "${message}" (Vol: ${(volume * 100).toFixed(0)}%)`;
+            } else {
+                soloStatus.textContent = "ระบบเสียงไม่พร้อม หรือกำลังพูดอยู่! กรุณาลองใหม่.";
+                console.warn("SpeechSynthesis not ready or busy for solo alarm.");
+            }
         });
         backToModeSelectionSoloButton.addEventListener('click', showModeSelection);
 
@@ -439,7 +474,7 @@
                 message: message,
                 volume: volume,
                 timestamp: Date.now(),
-                sender: userName // เพิ่มชื่อผู้ส่ง
+                sender: userName 
             };
 
             const alarmKey = ALARM_STORAGE_PREFIX + currentGroupId;
@@ -447,7 +482,12 @@
 
             groupStatus.textContent = `สั่งปลุกกลุ่ม "${currentGroupId}" แล้ว!`;
             // หัวหน้ากลุ่มก็ดังด้วย!
-            speakAlarm(message, volume);
+            if (window.speechSynthesis && window.speechSynthesis.speaking === false) { // เช็คก่อนสั่ง
+                speakAlarm(message, volume);
+            } else {
+                console.warn("SpeechSynthesis not ready or busy for group alarm from leader.");
+                groupStatus.textContent += " (แต่ระบบเสียงไม่พร้อม!)";
+            }
         });
         backToModeSelectionGroupLeaderButton.addEventListener('click', showModeSelection);
 
@@ -460,7 +500,7 @@
         // Check URL parameters for direct deep linking to group (optional for convenience)
         const urlParams = new URLSearchParams(window.location.search);
         const initialGroupId = urlParams.get('groupId');
-        const initialRole = urlParams.get('role'); // 'leader' or 'member'
+        const initialRole = urlParams.get('role'); 
         const initialName = urlParams.get('name');
 
         if (initialName) {
@@ -468,17 +508,16 @@
         }
 
         if (initialGroupId && (initialRole === 'leader' || initialRole === 'member')) {
-            // Delay auto-setup slightly to ensure UI is ready
             setTimeout(() => {
-                startAppButton.click(); // Start app first
-                setTimeout(() => { // Then attempt to set group
+                startAppButton.click(); 
+                setTimeout(() => { 
                     groupIdInput.value = initialGroupId;
                     if (initialRole === 'leader') {
                         activateGroupButton.click();
                     } else {
                         joinGroupButton.click();
                     }
-                }, 500); // Give time for Go-WASM to load
+                }, 500); 
             }, 100);
         }
     </script>
