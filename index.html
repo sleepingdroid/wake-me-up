@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>never gonna wake you up</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+            text-align: center;
+            padding: 20px;
+            box-sizing: border-box;
+
+            /* --- เพิ่ม CSS สำหรับพื้นหลัง Rick Roll ตรงนี้ --- */
+            background-image: url('rick-astley.png'); /* เปลี่ยน 'rick-roll-bg.png' เป็นชื่อไฟล์รูปภาพของคุณ */
+            background-size: cover; /* ทำให้รูปภาพคลุมพื้นที่ทั้งหมด */
+            background-position: center; /* จัดตำแหน่งรูปภาพให้อยู่ตรงกลาง */
+            background-repeat: no-repeat; /* ไม่ให้รูปภาพซ้ำ */
+            background-attachment: fixed; /* ทำให้รูปภาพอยู่กับที่เมื่อ scroll */
+            
+            /* ทำให้รูปภาพจางลง */
+            filter: opacity(0.8); /* ปรับ grayscale และ opacity ตามต้องการ */
+            /* หรือใช้แค่ opacity อย่างเดียวก็ได้: opacity: 0.2; */
+            /* --- สิ้นสุดการเพิ่ม CSS --- */
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        p {
+            color: #ff0000;
+            font-size: 1.1em;
+            margin-bottom: 20px;
+        }
+        .container {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            padding: 25px;
+            border-radius: 8px;
+            max-width: 600px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            width: 90%;
+            box-sizing: border-box;
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #555;
+            text-align: left;
+        }
+        input[type="text"], textarea, input[type="range"] {
+            width: calc(100% - 20px);
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 1em;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 5px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        #status {
+            margin-top: 20px;
+            font-weight: bold;
+            color: green;
+        }
+        .warning {
+            color: orange;
+            font-size: 0.9em;
+            margin-top: 10px;
+        }
+        hr {
+            margin: 30px 0;
+            border: 0;
+            border-top: 1px solid #eee;
+        }
+        .section-title {
+            font-size: 1.3em;
+            color: #333;
+            margin-bottom: 20px;
+        }
+        #modeSelection button {
+            background-color: #28a745;
+        }
+        #modeSelection button:hover {
+            background-color: #218838;
+        }
+        #modeSelection button.active {
+            background-color: #1a6d2f;
+            border: 2px solid #fff;
+        }
+    </style>
+</head>
+<body>
+    <h1>NeVeR gOnNa WaKe YoU uP</h1>
+    <p id="welcomeMessage">ได้เวลา สนุก! แล้วสิ~</p>
+
+    <div class="container" id="initialSetup">
+        <div class="section-title">ตั้งค่าเริ่มต้น</div>
+        <label for="userNameInput">ชื่อของคุณ:</label>
+        <input type="text" id="userNameInput" placeholder="ใส่ชื่อเล่นของคุณ" value="">
+        <p class="warning">
+            ⚠️ ชื่อนี้จะแสดงให้คนในกลุ่มเห็น (ในกรณีที่ใช้โหมดกลุ่ม)
+        </p>
+        <button id="startAppButton">เริ่มใช้งาน!</button>
+    </div>
+
+    <div class="container" id="modeSelection" style="display: none;">
+        <div class="section-title">เลือกโหมดการทำงาน</div>
+        <p>คุณ **<span id="displayUserName"></span>** ต้องการปลุกแบบไหน?</p>
+        <button id="soloModeButton">โหมดเดี่ยว: ปลุกตัวเอง!</button>
+        <button id="groupModeButton">โหมดกลุ่ม: ปลุกเพื่อนในกลุ่ม!</button>
+    </div>
+
+    <div class="container" id="soloModeControls" style="display: none;">
+        <div class="section-title">โหมดเดี่ยว: ปลุกตัวเอง!</div>
+        <label for="soloAlarmMessage">ข้อความปลุก (สำหรับคุณ):</label>
+        <textarea id="soloAlarmMessage" rows="3" placeholder="ตื่นได้แล้วนะ!"></textarea>
+
+        <label for="soloVolumeRange">ความดัง (0-100%):</label>
+        <input type="range" id="soloVolumeRange" min="0" max="100" value="70">
+        <span id="soloVolumeValue">70%</span>
+
+        <button id="triggerSoloAlarmButton">ปลุกตัวเองเดี๋ยวนี้!</button>
+        <p id="soloStatus" style="font-weight: bold; margin-top: 10px;"></p>
+        <button id="backToModeSelectionSolo">กลับไปเลือกโหมด</button>
+    </div>
+
+    <div class="container" id="groupModeSetup" style="display: none;">
+        <div class="section-title">โหมดกลุ่ม: ตั้งค่ากลุ่ม</div>
+        <label for="groupIdInput">Group ID:</label>
+        <input type="text" id="groupIdInput" placeholder="ใส่ Group ID หรือสร้างใหม่">
+        <button id="generateGroupIdButton">สร้าง Group ID</button>
+        <button id="joinGroupButton">เข้าร่วมกลุ่ม (ลูกกลุ่ม)</button>
+        <button id="activateGroupButton">เปิดใช้งานกลุ่ม (หัวหน้ากลุ่ม)</button>
+        <p id="groupStatus" style="font-weight: bold; margin-top: 10px;"></p>
+        <p class="warning">
+            ⚠️ สำหรับ Demo นี้: **เปิดหน้าเว็บนี้ในหลายๆ แท็บ/หน้าต่างเบราว์เซอร์เดียวกัน**
+            แล้วเข้าร่วมกลุ่มด้วย Group ID เดียวกัน เพื่อจำลองการทำงานเป็นกลุ่ม
+        </p>
+    </div>
+
+    <div class="container" id="groupLeaderControls" style="display: none;">
+        <div class="section-title">สำหรับหัวหน้ากลุ่ม (<span id="leaderNameDisplay"></span>)</div>
+        <label for="groupAlarmMessage">ข้อความปลุก:</label>
+        <textarea id="groupAlarmMessage" rows="3" placeholder="ตื่นได้แล้วไอ้ขี้เซา! สายแล้วนะเพื่อน!"></textarea>
+
+        <label for="groupVolumeRange">ความดัง (0-100%):</label>
+        <input type="range" id="groupVolumeRange" min="0" max="100" value="70">
+        <span id="groupVolumeValue">70%</span>
+
+        <button id="triggerGroupAlarmButton">ปลุกเพื่อนในกลุ่มเดี๋ยวนี้!</button>
+        <button id="backToModeSelectionGroupLeader">กลับไปเลือกโหมด</button>
+    </div>
+
+    <div class="container" id="groupMemberStatus" style="display: none;">
+        <div class="section-title">สำหรับลูกกลุ่ม (<span id="memberNameDisplay"></span>)</div>
+        <p id="alarmReceivedStatus" style="font-weight: bold; color: blue;">กำลังรอคำสั่งปลุก...</p>
+        <button id="backToModeSelectionGroupMember">กลับไปเลือกโหมด</button>
+    </div>
+
+    <script src="wasm_exec.js"></script>
+    <script>
+        const ALARM_STORAGE_PREFIX = "stupid_group_alarm_"; 
+        const POLLING_INTERVAL = 500; 
+
+        let userName = "";
+        let currentGroupId = null;
+        let goModuleLoaded = false;
+        let currentMode = null; // 'solo', 'group_leader', 'group_member'
+        let lastAlarmTimestamp = 0; 
+        let pollingIntervalId = null; // เพื่อเก็บ ID ของ setInterval สำหรับหยุด
+
+        // UI Elements - Initial Setup
+        const initialSetupDiv = document.getElementById('initialSetup');
+        const userNameInput = document.getElementById('userNameInput');
+        const startAppButton = document.getElementById('startAppButton');
+        const welcomeMessage = document.getElementById('welcomeMessage');
+
+        // UI Elements - Mode Selection
+        const modeSelectionDiv = document.getElementById('modeSelection');
+        const displayUserName = document.getElementById('displayUserName');
+        const soloModeButton = document.getElementById('soloModeButton');
+        const groupModeButton = document.getElementById('groupModeButton');
+
+        // UI Elements - Solo Mode
+        const soloModeControlsDiv = document.getElementById('soloModeControls');
+        const soloAlarmMessageInput = document.getElementById('soloAlarmMessage');
+        const soloVolumeRange = document.getElementById('soloVolumeRange');
+        const soloVolumeValueSpan = document.getElementById('soloVolumeValue');
+        const triggerSoloAlarmButton = document.getElementById('triggerSoloAlarmButton');
+        const soloStatus = document.getElementById('soloStatus');
+        const backToModeSelectionSoloButton = document.getElementById('backToModeSelectionSolo');
+
+        // UI Elements - Group Mode Setup
+        const groupModeSetupDiv = document.getElementById('groupModeSetup');
+        const groupIdInput = document.getElementById('groupIdInput');
+        const generateGroupIdButton = document.getElementById('generateGroupIdButton');
+        const joinGroupButton = document.getElementById('joinGroupButton');
+        const activateGroupButton = document.getElementById('activateGroupButton');
+        const groupStatus = document.getElementById('groupStatus');
+
+        // UI Elements - Group Leader
+        const groupLeaderControlsDiv = document.getElementById('groupLeaderControls');
+        const leaderNameDisplay = document.getElementById('leaderNameDisplay');
+        const groupAlarmMessageInput = document.getElementById('groupAlarmMessage');
+        const groupVolumeRange = document.getElementById('groupVolumeRange');
+        const groupVolumeValueSpan = document.getElementById('groupVolumeValue');
+        const triggerGroupAlarmButton = document.getElementById('triggerGroupAlarmButton');
+        const backToModeSelectionGroupLeaderButton = document.getElementById('backToModeSelectionGroupLeader');
+
+        // UI Elements - Group Member
+        const groupMemberStatusDiv = document.getElementById('groupMemberStatus');
+        const memberNameDisplay = document.getElementById('memberNameDisplay');
+        const alarmReceivedStatus = document.getElementById('alarmReceivedStatus');
+        const backToModeSelectionGroupMemberButton = document.getElementById('backToModeSelectionGroupMember');
+
+        // Go-WASM Function (from main.go)
+        const speakAlarm = (message, volume) => {
+            if (window.speakAlarm && typeof window.speakAlarm === 'function') {
+                window.speakAlarm(message, volume);
+            } else {
+                console.error("Go speakAlarm function not loaded or available.");
+                // Update status based on current mode
+                if (currentMode === 'solo') {
+                    soloStatus.textContent = "Go-WASM ยังไม่พร้อม!";
+                } else if (currentMode === 'group_member') {
+                    alarmReceivedStatus.textContent = "Go-WASM ยังไม่พร้อม! กรุณากด 'เข้าร่วมกลุ่ม' ก่อน";
+                }
+            }
+        };
+
+        // Load Go-WASM Module
+        async function loadGoWasm() {
+            if (goModuleLoaded) return true;
+            try {
+                const go = new Go();
+                const result = await WebAssembly.instantiateStreaming(
+                    fetch("main.wasm"),
+                    go.importObject
+                );
+                go.run(result.instance);
+                goModuleLoaded = true;
+                console.log("Go-WASM loaded successfully.");
+                const testUtterance = new SpeechSynthesisUtterance(" ");
+                testUtterance.volume = 0;
+                window.speechSynthesis.speak(testUtterance);
+                return true;
+            } catch (err) {
+                console.error("Error loading Go-WASM:", err);
+                return false;
+            }
+        }
+
+        // --- UI Management Functions ---
+        function hideAllSections() {
+            initialSetupDiv.style.display = 'none';
+            modeSelectionDiv.style.display = 'none';
+            soloModeControlsDiv.style.display = 'none';
+            groupModeSetupDiv.style.display = 'none';
+            groupLeaderControlsDiv.style.display = 'none';
+            groupMemberStatusDiv.style.display = 'none';
+        }
+
+        function showInitialSetup() {
+            hideAllSections();
+            initialSetupDiv.style.display = 'block';
+            welcomeMessage.textContent = "ได้เวลา สนุก! แล้วสิ~";
+            userNameInput.value = localStorage.getItem('userName') || "userA"; // โหลดชื่อจาก Local Storage
+        }
+
+        function showModeSelection() {
+            hideAllSections();
+            modeSelectionDiv.style.display = 'block';
+            displayUserName.textContent = userName;
+            welcomeMessage.textContent = `ยินดีต้อนรับ, ${userName}!`;
+        }
+
+        function showSoloMode() {
+            hideAllSections();
+            soloModeControlsDiv.style.display = 'block';
+            soloStatus.textContent = ""; // Clear previous status
+            currentMode = 'solo';
+            stopLocalStoragePolling(); // หยุด Polling ถ้ามาจากโหมดกลุ่ม
+        }
+
+        function showGroupModeSetup() {
+            hideAllSections();
+            groupModeSetupDiv.style.display = 'block';
+            currentMode = null; // ยังไม่ระบุโหมดกลุ่มย่อย
+        }
+
+        function showGroupLeaderMode() {
+            hideAllSections();
+            groupLeaderControlsDiv.style.display = 'block';
+            leaderNameDisplay.textContent = userName;
+            currentMode = 'group_leader';
+            startLocalStoragePolling(); // เริ่ม Polling สำหรับหัวหน้ากลุ่ม
+        }
+
+        function showGroupMemberMode() {
+            hideAllSections();
+            groupMemberStatusDiv.style.display = 'block';
+            memberNameDisplay.textContent = userName;
+            alarmReceivedStatus.textContent = "กำลังรอคำสั่งปลุก...";
+            currentMode = 'group_member';
+            startLocalStoragePolling(); // เริ่ม Polling สำหรับลูกกลุ่ม
+        }
+
+        // --- Local Storage Polling ---
+        function startLocalStoragePolling() {
+            if (pollingIntervalId) clearInterval(pollingIntervalId); // Clear any existing interval
+            pollingIntervalId = setInterval(() => {
+                if (!currentGroupId) return; // ไม่ต้องเช็คถ้ายังไม่มี Group ID
+                const alarmKey = ALARM_STORAGE_PREFIX + currentGroupId;
+                const storedAlarm = localStorage.getItem(alarmKey);
+                
+                if (storedAlarm) {
+                    try {
+                        const alarmData = JSON.parse(storedAlarm);
+                        // Ensure it's a new alarm based on timestamp and not from the same user if leader
+                        if (alarmData.timestamp > lastAlarmTimestamp && alarmData.sender !== userName) { // เพิ่มเช็ค sender
+                            speakAlarm(alarmData.message, alarmData.volume);
+                            alarmReceivedStatus.textContent = `โดนปลุกจาก ${alarmData.sender}: "${alarmData.message}" (Vol: ${(alarmData.volume * 100).toFixed(0)}%)`;
+                            console.log("Alarm received from Local Storage:", alarmData);
+                            lastAlarmTimestamp = alarmData.timestamp; 
+                        }
+                    } catch (e) {
+                        console.error("Error parsing alarm data from Local Storage:", e);
+                    }
+                }
+            }, POLLING_INTERVAL);
+        }
+
+        function stopLocalStoragePolling() {
+            if (pollingIntervalId) {
+                clearInterval(pollingIntervalId);
+                pollingIntervalId = null;
+                console.log("Stopped Local Storage polling.");
+            }
+        }
+
+        // --- Event Listeners ---
+
+        // Initial Setup
+        startAppButton.addEventListener('click', async () => {
+            userName = userNameInput.value.trim();
+            if (!userName) userName = "userA";
+            localStorage.setItem('userName', userName); // บันทึกชื่อไว้
+            const loaded = await loadGoWasm();
+            if (loaded) {
+                showModeSelection();
+            } else {
+                alert("ไม่สามารถโหลด Go-WASM ได้! กรุณาตรวจสอบ Console.");
+            }
+        });
+
+        // Mode Selection
+        soloModeButton.addEventListener('click', showSoloMode);
+        groupModeButton.addEventListener('click', showGroupModeSetup);
+
+        // Solo Mode
+        soloVolumeRange.addEventListener('input', () => {
+            soloVolumeValueSpan.textContent = `${soloVolumeRange.value}%`;
+        });
+        triggerSoloAlarmButton.addEventListener('click', () => {
+            const message = soloAlarmMessageInput.value || "ตื่นได้แล้วนะ!";
+            const volume = parseFloat(soloVolumeRange.value) / 100;
+            speakAlarm(message, volume);
+            soloStatus.textContent = `ปลุกตัวเองแล้ว: "${message}" (Vol: ${(volume * 100).toFixed(0)}%)`;
+        });
+        backToModeSelectionSoloButton.addEventListener('click', showModeSelection);
+
+        // Group Mode Setup
+        generateGroupIdButton.addEventListener('click', () => {
+            const newId = Math.random().toString(36).substring(2, 8).toUpperCase();
+            groupIdInput.value = newId;
+            groupStatus.textContent = `สร้าง Group ID: ${newId} แล้ว!`;
+        });
+
+        joinGroupButton.addEventListener('click', () => {
+            currentGroupId = groupIdInput.value.trim();
+            if (!currentGroupId) {
+                groupStatus.textContent = "กรุณาใส่ Group ID ก่อน!";
+                return;
+            }
+            showGroupMemberMode();
+            groupStatus.textContent = `เข้าร่วมกลุ่ม "${currentGroupId}" แล้ว (ลูกกลุ่ม)`;
+        });
+
+        activateGroupButton.addEventListener('click', () => {
+            currentGroupId = groupIdInput.value.trim();
+            if (!currentGroupId) {
+                groupStatus.textContent = "กรุณาใส่ Group ID ก่อน!";
+                return;
+            }
+            showGroupLeaderMode();
+            groupStatus.textContent = `เปิดใช้งานกลุ่ม "${currentGroupId}" แล้ว (หัวหน้ากลุ่ม)`;
+        });
+
+        // Group Leader Controls
+        groupVolumeRange.addEventListener('input', () => {
+            groupVolumeValueSpan.textContent = `${groupVolumeRange.value}%`;
+        });
+        triggerGroupAlarmButton.addEventListener('click', () => {
+            if (!currentGroupId) {
+                groupStatus.textContent = "กรุณาตั้งค่า Group ID ก่อน!";
+                return;
+            }
+
+            const message = groupAlarmMessageInput.value || "ตื่นได้แล้วไอ้ขี้เซา!";
+            const volume = parseFloat(groupVolumeRange.value) / 100;
+
+            const alarmData = {
+                message: message,
+                volume: volume,
+                timestamp: Date.now(),
+                sender: userName // เพิ่มชื่อผู้ส่ง
+            };
+
+            const alarmKey = ALARM_STORAGE_PREFIX + currentGroupId;
+            localStorage.setItem(alarmKey, JSON.stringify(alarmData));
+
+            groupStatus.textContent = `สั่งปลุกกลุ่ม "${currentGroupId}" แล้ว!`;
+            // หัวหน้ากลุ่มก็ดังด้วย!
+            speakAlarm(message, volume);
+        });
+        backToModeSelectionGroupLeaderButton.addEventListener('click', showModeSelection);
+
+        // Group Member Status
+        backToModeSelectionGroupMemberButton.addEventListener('click', showModeSelection);
+
+        // Initial Load: Show setup screen
+        document.addEventListener('DOMContentLoaded', showInitialSetup);
+
+        // Check URL parameters for direct deep linking to group (optional for convenience)
+        const urlParams = new URLSearchParams(window.location.search);
+        const initialGroupId = urlParams.get('groupId');
+        const initialRole = urlParams.get('role'); // 'leader' or 'member'
+        const initialName = urlParams.get('name');
+
+        if (initialName) {
+            userNameInput.value = initialName;
+        }
+
+        if (initialGroupId && (initialRole === 'leader' || initialRole === 'member')) {
+            // Delay auto-setup slightly to ensure UI is ready
+            setTimeout(() => {
+                startAppButton.click(); // Start app first
+                setTimeout(() => { // Then attempt to set group
+                    groupIdInput.value = initialGroupId;
+                    if (initialRole === 'leader') {
+                        activateGroupButton.click();
+                    } else {
+                        joinGroupButton.click();
+                    }
+                }, 500); // Give time for Go-WASM to load
+            }, 100);
+        }
+    </script>
+</body>
+</html>
